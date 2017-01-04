@@ -202,7 +202,7 @@ def index():
 
     items.append(
     {
-        'label': "Download",
+        'label': "Download Test",
         'path': plugin.url_for('service'),
         'thumbnail': 'special://home/addons/plugin.program.downloader/icon.png',
     })
