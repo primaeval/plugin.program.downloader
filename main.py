@@ -7,6 +7,8 @@ import xbmcplugin
 import json
 import hashlib
 import zipfile
+import time
+import os
 
 plugin = Plugin()
 
@@ -33,6 +35,7 @@ def service():
         folder = download["folder"]
         user = download["user"]
         password = download["pass"]
+        local_md5 = download.get("md5",'')
         if user and password:
             auth = (user, password)
         else:
@@ -44,10 +47,10 @@ def service():
             continue
         local_filename = folder + filename
         local_temp_filename = local_filename + ".tmp"
-        local_md5_filename = local_filename + ".md5"
+        #local_md5_filename = local_filename + ".md5"
         remote_md5_url = url + ".md5"
 
-        local_md5 = xbmcvfs.File(local_md5_filename,"rb").read()[:32]
+        #local_md5 = xbmcvfs.File(local_md5_filename,"rb").read()[:32]
         remote_md5 = None
         try:
             r = requests.get(remote_md5_url,auth=auth)
@@ -87,23 +90,33 @@ def service():
             success = xbmcvfs.delete(local_filename)
             if not success:
                 log("[plugin.program.downloader] FAILED TO DELETE: " + local_filename)
-                continue
+                #continue
 
         success = xbmcvfs.rename(local_temp_filename,local_filename)
         if not success:
             log("[plugin.program.downloader] FAILED TO RENAME: " + local_filename)
             continue
 
-        xbmcvfs.File(local_md5_filename,"wb").write(tmp_md5)
+        #xbmcvfs.File(local_md5_filename,"wb").write(tmp_md5)
+        downloads[name]["md5"] = tmp_md5
 
         magic = xbmcvfs.File(local_filename,"rb").read(4)
         if magic == "\x50\x4b\x03\x04":
-            z = zipfile.ZipFile(local_filename, "r")
-            z.extractall(folder)
+            z = zipfile.ZipFile(xbmc.translatePath(local_filename), "r")
+            z.extractall(xbmc.translatePath(folder))
+            z.close()
+            if plugin.get_setting('delete.zip') == 'true':
+                if xbmcvfs.exists(local_filename):
+                    success = xbmcvfs.delete(local_filename)
+                    if not success:
+                        log("[plugin.program.downloader] FAILED TO DELETE ZIP: " + local_filename)
 
-        #TODO delete
 
         log("[plugin.program.downloader] Finished %s" % name)
+
+    data = json.dumps(downloads,indent=2)
+    xbmcvfs.File(file_name,'wb').write(data)
+
 
 @plugin.route('/edit')
 def edit():
@@ -158,7 +171,7 @@ def edit():
             password = download.get("pass",'')
             if not password:
                 password = ''
-            actions = ["Delete","URL: "+url,"Folder: "+folder,"User: "+user,"Password: "+password]
+            actions = ["Delete","URL: "+url,"Folder: "+folder,"User: "+user,"Password: "+password, "Reset MD5"]
             action = d.select("Edit - %s" % key,actions)
             if action == -1:
                 continue
@@ -180,7 +193,8 @@ def edit():
                 new_password = d.input("password: "+password,password)
                 if new_password:
                     download["url"] = new_password
-
+            elif action == 5:
+                download["md5"] = ''
 
 @plugin.route('/')
 def index():
