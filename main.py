@@ -40,7 +40,7 @@ def service():
 
         filename = url.rsplit('/',1)[-1]
         if not filename:
-            log(("ERROR",url))
+            log(("[plugin.program.downloader] ERROR",url))
             continue
         local_filename = folder + filename
         local_temp_filename = local_filename + ".tmp"
@@ -48,26 +48,31 @@ def service():
         remote_md5_url = url + ".md5"
 
         local_md5 = xbmcvfs.File(local_md5_filename,"rb").read()[:32]
-        r = requests.get(remote_md5_url,auth=auth)
-        if r.status_code == requests.codes.ok:
-            remote_md5 = r.text.encode('ascii', 'ignore')[:32]
-        else:
-            remote_md5 = None
+        remote_md5 = None
+        try:
+            r = requests.get(remote_md5_url,auth=auth)
+            if r.status_code == requests.codes.ok:
+                remote_md5 = r.text.encode('ascii', 'ignore')[:32]
+        except:
+            pass
 
         if local_md5 and remote_md5 and local_md5 == remote_md5:
-            log("DOWNLOAD NOT NEEDED: " + url)
+            log("[plugin.program.downloader] DOWNLOAD NOT NEEDED: " + url)
             continue
 
         f = xbmcvfs.File(local_temp_filename,"wb")
-        r = requests.get(url,auth=auth, stream=True, verify=False)
-        if r.status_code == requests.codes.ok:
-            chunk_size = 16 * 1024
-            for chunk in r.iter_content(chunk_size):
-                success = f.write(chunk)
-                log(success)
-            f.close()
-        else:
-            log("FAILED TO DOWNLOAD: " + url)
+        try:
+            r = requests.get(url,auth=auth, stream=True, verify=False)
+            if r.status_code == requests.codes.ok:
+                chunk_size = 16 * 1024
+                for chunk in r.iter_content(chunk_size):
+                    success = f.write(chunk)
+                f.close()
+            else:
+                log("[plugin.program.downloader] FAILED TO DOWNLOAD: " + url)
+                continue
+        except:
+            log("[plugin.program.downloader] FAILED TO DOWNLOAD: " + url)
             continue
 
         md5 = hashlib.md5()
@@ -75,18 +80,18 @@ def service():
         tmp_md5 = md5.hexdigest()
 
         if remote_md5 and tmp_md5 != remote_md5:
-            log("FAILED MD5: " + url)
+            log("[plugin.program.downloader] FAILED MD5: " + url)
             continue
 
         if xbmcvfs.exists(local_filename):
             success = xbmcvfs.delete(local_filename)
             if not success:
-                log("FAILED TO DELETE: " + local_filename)
+                log("[plugin.program.downloader] FAILED TO DELETE: " + local_filename)
                 continue
 
         success = xbmcvfs.rename(local_temp_filename,local_filename)
         if not success:
-            log("FAILED TO RENAME: " + local_filename)
+            log("[plugin.program.downloader] FAILED TO RENAME: " + local_filename)
             continue
 
         xbmcvfs.File(local_md5_filename,"wb").write(tmp_md5)
