@@ -144,7 +144,14 @@ def edit():
             url = d.input("URL")
             if not url:
                 continue
-            folder = d.browse(3, 'Folder', 'files', '', False, False, 'special://home')
+            root = d.select("Root Folder",["Home","Shares"])
+            if root == -1:
+                continue
+            if root == 0:
+                root_folder = 'special://home'
+            else:
+                root_folder = ''
+            folder = d.browse(3, 'Folder', 'files', '', False, False, root_folder)
             if not folder:
                 continue
             downloads[name] = {}
@@ -182,7 +189,14 @@ def edit():
                 if new_url:
                     download["url"] = new_url
             elif action == 2:
-                new_folder = d.browse(3, 'Folder', 'files', '', False, False, 'special://home')
+                root = d.select("Root Folder",["Home","Shares"])
+                if root == -1:
+                    continue
+                if root == 0:
+                    root_folder = 'special://home'
+                else:
+                    root_folder = ''
+                new_folder = d.browse(3, 'Folder', 'files', '', False, False, root_folder)
                 if new_folder:
                     download["folder"] = new_folder
             elif action == 3:
